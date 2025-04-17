@@ -1,8 +1,6 @@
-##系统报错改为英文
 Sys.setenv(LANGUAGE = "en")
-##禁止转化为因子
 options(stringsAsFactors = FALSE)
-##清空环境
+
 rm(list=ls())
 remotes::install_github('chris-mcginnis-ucsf/DoubletFinder', force = TRUE)
 
@@ -23,7 +21,7 @@ samples=project_name
         
 sample1=make_seurat_object_and_doublet_removal(data_directory[1], samples[1])
 
-###  多个样本合并 
+###merge
 seu_list=sample1
 for (i in 2:8){
 sc.i = make_seurat_object_and_doublet_removal(data_directory[i], samples[i])
@@ -35,14 +33,14 @@ table(seu_list$orig.ident)
 ##############################################################################
 ##############################################################################
 ##############################################################################
-###harmony整合
+###harmony
 scRNA_harmony=seu_list
 scRNA_harmony=NormalizeData(scRNA_harmony ) %>% FindVariableFeatures() %>% ScaleData() %>% RunPCA(verbose=FALSE)
 library(harmony)
 scRNA_harmony=RunHarmony(scRNA_harmony, group.by.vars = "orig.ident")
-###问题 harmony之后的数据在哪里？
+
         
-###一定要指定harmony
+###Plot
 scRNA_harmony=FindNeighbors(scRNA_harmony, reduction = "harmony", dims = 1:20) %>% FindClusters(resolution =0.15)
 scRNA_harmony=RunUMAP(scRNA_harmony, reduction = "harmony", dims = 1:20)
 scRNA_harmony=RunTSNE(scRNA_harmony,reduction = "harmony",dims = 1:20)
