@@ -9,10 +9,12 @@ rm(list = ls())
 load("scRNA_harmony_0.15.rdata")
 E18sc_brain1<-scRNA_harmony
 
+#Findallmarker for cluster marker gene
 E18sc_brain1<-JoinLayers(E18sc_brain1)
 E18scRNA.markers<-FindAllMarkers(E18sc_brain1,only.pos=TRUE,min.pct = 0.5,logfc.threshold = 0.5)
 write.table(E18scRNA.markers[E18scRNA.markers$p_val_adj<=0.05,],file="./all_markers_0.15_0.5.xls",sep="\t",col.names=TRUE,row.names=F,quote=F)
 
+#GPTCelltype package for celltype prediction
 top20<- E18scRNA.markers%>% group_by(cluster)%>% top_n(n=20,wt=avg_log2FC)
 top30<- E18scRNA.markers%>% group_by(cluster)%>% top_n(n=30,wt=avg_log2FC)
 top20<-as.data.frame(top20)
@@ -28,7 +30,7 @@ DimPlot_scCustom(E18sc_brain1,group.by = "celltype", reduction = "umap",split.by
 marker<-c("Dlx2","Dlx1","Gad2","Adarb2")
 VlnPlot(E18sc_brain1, features =marker,pt.size = 0,raster=FALSE,ncol = 1)
 
-
+#Annotation celltype
 E18sc_brain1 <-RenameIdents(E18sc_brain1,"0"="Excitatory Neurons","10"="Excitatory Neurons",
                             "1"="Inhibitory Interneurons","2"="Inhibitory Interneurons","5"="Inhibitory Interneurons",
                             "3"="Astrocytes",
@@ -53,7 +55,7 @@ DimPlot_scCustom(E18sc_brain1,colors_use =colors,
 
 save(E18sc_brain1,file = "E18scbrain_filter_celltype.Rdata")
 
-#细胞比例
+#Proportion of diff_celltype
 load( "E18scbrain_filter_celltype.Rdata")
 sample_table <- as.data.frame(table(E18sc_brain1@meta.data$orig.ident,E18sc_brain1@meta.data$celltype))
 names(sample_table) <- c("Samples","celltype","CellNumber")
@@ -69,7 +71,7 @@ plot_sample<-ggplot(sample_table,aes(x=Samples,weight=CellNumber,fill=celltype))
   )+labs(x="",y="Percentage")+RotatedAxis()
 plot_sample
 
-#marker gene
+#plot for marker gene
 marker<-c("Tubb3","Vim","Tek","Siglech","Gad2","Olig1","Neurod2","Myh11","Aldoc","Folr1","Lyz2","Mki67","Pdgfrb", "Tmem212","Rac2","Col6a1")
 VlnPlot(E18sc_brain1, features =marker,split.by ="orig.ident",group.by = "celltype" ,pt.size = 0,raster=FALSE,ncol = 1,split.plot = TRUE)
 FeaturePlot_scCustom(E18sc_brain1,features = c("Vim","Tubb3","Neurod2","Gad1","Aldoc","Mki67","C1qa", "Cldn5","Olig1", "Col1a1","Rgs5", "Folr1"),order = T,num_columns = 6, na_color = "lightgray",na_cutoff = 0.1)
