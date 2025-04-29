@@ -1,0 +1,64 @@
+BiocManager::install("enrichplot")
+BiocManager::install("reactome.db")
+BiocManager::install("ReactomePA",force = T)
+
+library(tidyverse)
+library(org.Mm.eg.db)
+library(clusterProfiler)
+library(DOSE)
+library(RColorBrewer)
+library(enrichplot)
+library(ReactomePA)
+
+rm(list = ls())
+dt<-data.frame(E18_HAM_vs_E18_NAM_Deg)
+
+#SYMBOL to ENTREZID##############################################
+genelist<-bitr(dt$gene,fromType = "SYMBOL",
+               toType = "ENTREZID",
+               OrgDb = "org.Mm.eg.db")
+dt<-left_join(dt,genelist,by=c('gene'="SYMBOL"))
+
+#KEGG###############################################
+enrichKEGG<-compareCluster(ENTREZID~celltype,data=dt,fun="enrichKEGG",
+                    organism='mmu',pvalueCutoff=0.05)
+
+dotplot(enrichKEGG,showCategory=20,color="p.adjust",font.size=10)+theme_classic()+
+  theme(axis.text.x=element_text(angle=45,hjust=1,size = 12,face = "bold"),
+        axis.text.y = element_text(size=12,face = "bold"),
+        axis.title.y = element_blank())+
+  coord_flip()
+
+enrich.KEGG2<-setReadable(enrichKEGG,OrgDb = org.Mm.eg.db,keyType = "ENTREZID")
+KEGG_result <- enrich.KEGG2@compareClusterResult
+head(KEGG_result)
+write.csv(KEGG_result,"KEGG_HAM vs NAM.csv")
+
+#Reactome##########################################
+enrichReactome<-compareCluster(ENTREZID~celltype,data=dt,fun="enrichPathway",
+                           organism="mouse",pvalueCutoff=0.05)
+
+dotplot(enrichReactome,showCategory=5,color="p.adjust",font.size=10)+theme_classic()+
+  theme(axis.text.x=element_text(angle=45,hjust=1,size = 12,face = "bold"),
+        axis.text.y = element_text(size=12,face = "bold"),
+        axis.title.y = element_blank())+
+  coord_flip()
+
+Reactome_result <- enrichReactome@compareClusterResult
+head(KEGG_result)
+write.csv(Reactome_result,"Reactome_HAM vs NAM.csv")
+
+#GO###############################################
+enrichGO<-compareCluster(ENTREZID~celltype,data=dt,fun='enrichGO',
+               OrgDb="org.Mm.eg.db",keyType="ENTREZID",ont="BP")
+
+dotplot(enrichGO,showCategory=,color="p.adjust",font.size=10)+theme_classic()+
+  theme(axis.text.x=element_text(angle=45,hjust=1,size = 12,face = "bold"),
+        axis.text.y = element_text(size=12,face = "bold"),
+        axis.title.y = element_blank())+
+  coord_flip()
+
+enrich.GO2<-setReadable(enrichGO,OrgDb = org.Mm.eg.db,keyType = "ENTREZID")
+GO_result <- enrich.GO2@compareClusterResult
+head(GO_result)
+write.csv(GO_result,"GO_HAM vs NAM.csv")
