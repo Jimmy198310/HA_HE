@@ -1,0 +1,59 @@
+library(Seurat)
+library(scRNAtoolVis)
+library(pheatmap)
+library(ggplot2)
+library(presto)
+library(pheatmap)
+library(ComplexHeatmap)
+
+rm(list = ls())
+load("E18scbrain_filter_celltype.Rdata")
+dt<-E18sc_brain1
+Idents(dt)<-dt$celltype
+
+colors<-c("#C5B0D5","#AEC7E8","#17BECF","#D1352B","#D2EBC8","#7DBFA7","#FFA500","#8C564B","#7B68EE","#F08080","#BBDD78","#AECDE1","#FCED82","#9B5B33")
+dt@meta.data$orig.ident<-factor(dt@meta.data$orig.ident,levels = c("E18_NCM","E18_NCF","E18_HEM","E18_HEF","E18_NAM","E18_NAF","E18_HAM","E18_HAF"))
+
+?clusterCornerAxes
+clusterCornerAxes(object = dt,
+                  clusterCol = "celltype",noSplit = F,
+                  groupFacet = "orig.ident",axes = 'one',show.legend = F,
+                  reduction = 'umap', pSize = 0.5,aspect.ratio = 1,relLength = 0.5, keySize = 3)+ggplot2::scale_color_manual(values=colors)
+
+clusterCornerAxes(dt, clusterCol = "celltype",reduction = "umap",pSize = 0.5,aspect.ratio = 1,relLength = 0.5, keySize = 3, cornerTextSize = 3.5)+
+  ggplot2::scale_color_manual(values=colors)
+
+marker_1<-c("Vim","Tubb3","Neurod2","Gad1","Aldoc","Mki67")
+marker_2<-c("C1qa", "Cldn5","Olig1", "Col1a1","Rgs5", "Folr1")
+?featureCornerAxes
+featureCornerAxes(object = dt,reduction = 'umap',groupFacet = NULL,
+                  relLength = 0.5,
+                  relDist = 0.2,
+                  aspect.ratio = 1,
+                  features = marker_1,minExp = 0,maxExp = 4)
+featureCornerAxes(object = dt,reduction = 'umap',groupFacet = NULL,
+                  relLength = 0.5,
+                  relDist = 0.2,
+                  aspect.ratio = 1,
+                  features = marker_2,minExp = 0,maxExp = 4)
+
+
+marker<-FindAllMarkers(dt,only.pos=TRUE,min.pct = 0.5,logfc.threshold = 0.5)
+top5<- marker%>% group_by(cluster)%>% top_n(n=5,wt=avg_log2FC)%>%as.data.frame()
+write.csv(marker[marker$p_val_adj<=0.05,],file="./all_markers_celltype.csv")
+write.csv(top5,file = "top5.csv")
+
+colors<-c("#C5B0D5","#AEC7E8","#17BECF","#D1352B","#D2EBC8","#7DBFA7","#FFA500","#8C564B","#7B68EE","#F08080")
+names(colors)<-levels(dt$celltype)
+
+averageHeatmap(object =dt,group.by = "celltype",
+              annoCol = T,myanCol=colors,
+              column_split=1:10,
+              gene.order = top5$gene,     
+              markerGene = top5$gene)
+
+?markerVolcano
+DEG_data<-E18_HAM_vs_E18_NAM_Deg
+DEG_cluster<-c("Excitatory Neurons","Inhibitory Interneurons","Astrocytes","Cycling Progenitor Cells","Microglia","Endothelial Cells","OPCs","Fibroblasts","Pericytes","CPECs")
+
+markerVolcano(markers = DEG_data,topn = 5,labelCol =colors)
