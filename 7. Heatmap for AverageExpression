@@ -1,0 +1,27 @@
+library(Seurat)
+library(ggplot2)
+library(ggpubr)
+library(cowplot)
+library(dplyr)
+library(stringr)
+library(pheatmap)
+
+rm(list = ls())
+load("E18scbrain_filter_celltype.Rdata")
+seu<-E18sc_brain1
+head(seu@meta.data)
+Idents(seu)<-seu$celltype
+levels(seu$celltype)
+
+gene_ave<-AverageExpression(seu,group.by = c("orig.ident","celltype"))
+data_ave<-data.matrix(gene_ave$RNA)
+write.csv(data_ave,"./Heatmap/gene_average.csv")
+
+gene_set_Cycling<-c("Rpl10-ps3","Gadd45b","Arhgap18","Gm11808","Hdac9",	"Reps2",	"Rpl9-ps6",	"Tln2"	,"Map7",	"Il1a"	,"Heph",	"Adrb2",	"Agrp",	"Tbc1d4"	,	"Gm2000",	"Il1b",	"Ctla4"	,"Gm46563",	"Nudcd3",	"Ftl1-ps1",	"Kalrn",	"Clec4a1",	"Rps27rt"	,"Gm14164",	"Clcn5",	"Gm42047",	"9330111N05Rik",	"Itga9","F13a1",	"Rrm2b")
+
+select_data<-data_ave[rownames(data_ave)%in%gene_set_Cycling,c(grep("_Microglia",colnames(data_ave)))]
+head(select_data)
+select_data_male<-select_data[,c("E18-NCM_Microglia","E18-HEM_Microglia","E18-NAM_Microglia","E18-HAM_Microglia")]
+head(select_data_male)
+pheatmap(select_data_male,scale = "row",border_color = "white",cluster_rows = T, cluster_cols = F,
+         cellwidth = 15, cellheight = 10, fontsize = 7, show_colnames = F,cutree_rows =2)
