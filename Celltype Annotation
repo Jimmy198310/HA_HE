@@ -1,0 +1,87 @@
+library(GPTCelltype)
+library(openai)
+library(Seurat)
+library(ggplot2)
+library(dplyr)
+library(scCustomize)
+
+rm(list = ls())
+load("scRNA_harmony_0.15.rdata")
+E18sc_brain1<-scRNA_harmony
+
+E18sc_brain1<-JoinLayers(E18sc_brain1)
+E18scRNA.markers<-FindAllMarkers(E18sc_brain1,only.pos=TRUE,min.pct = 0.5,logfc.threshold = 0.5)
+write.table(E18scRNA.markers[E18scRNA.markers$p_val_adj<=0.05,],file="./all_markers_0.15_0.5.xls",sep="\t",col.names=TRUE,row.names=F,quote=F)
+
+top20<- E18scRNA.markers%>% group_by(cluster)%>% top_n(n=20,wt=avg_log2FC)
+top30<- E18scRNA.markers%>% group_by(cluster)%>% top_n(n=30,wt=avg_log2FC)
+top20<-as.data.frame(top20)
+top30<-as.data.frame(top30)
+Sys.setenv(OPENAI_API_KEY = '**************************************')
+res_top20 <- gptcelltype(top20, tissuename = "forebrain", model = 'gpt-4-turbo')
+res_top30 <- gptcelltype(top30, tissuename = "forebrain", model = 'gpt-4-turbo')
+
+E18sc_brain1@meta.data$celltype<-as.factor(res_top20[as.character(Idents(E18sc_brain1))])
+DimPlot_scCustom(E18sc_brain1,group.by = "celltype",reduction = "umap",label = T)
+DimPlot_scCustom(E18sc_brain1,group.by = "celltype", reduction = "umap",split.by = 'orig.ident',label=T)
+
+marker<-c("Dlx2","Dlx1","Gad2","Adarb2")
+VlnPlot(E18sc_brain1, features =marker,pt.size = 0,raster=FALSE,ncol = 1)
+
+
+E18sc_brain1 <-RenameIdents(E18sc_brain1,"0"="Excitatory Neurons","10"="Excitatory Neurons",
+                            "1"="Inhibitory Interneurons","2"="Inhibitory Interneurons","5"="Inhibitory Interneurons",
+                            "3"="Astrocytes",
+                            "4"="Cycling Progenitor Cells",
+                            "6"="Microglia","13"="Microglia",
+                            "7"="Endothelial Cells",
+                            "8"="OPCs",
+                            "9"="Fibroblasts",
+                            "11"="Pericytes",
+                            "12"="CPECs")
+colors<-c("#C5B0D5","#AEC7E8","#17BECF","#D1352B","#D2EBC8","#7DBFA7","#FFA500","#8C564B","#7B68EE","#F08080","#BBDD78","#AECDE1","#FCED82","#9B5B33","#F08080")
+E18sc_brain1@meta.data$orig.ident<-factor(E18sc_brain1@meta.data$orig.ident,levels = c("E18_NCM","E18_NCF","E18_HEM","E18_HEF","E18_NAM","E18_NAF","E18_HAM","E18_HAF"))
+E18sc_brain1@meta.data$celltype<-as.factor(E18sc_brain1@active.ident)
+
+DimPlot_scCustom(E18sc_brain1,colors_use = colors,
+                 reduction = "umap",label = T,pt.size = 0.5,
+                 label.size = 4,repel = T,raster=FALSE,split_seurat = T,figure_plot=T,aspect_ratio=1)
+DimPlot_scCustom(E18sc_brain1,colors_use =colors,
+                 reduction = "umap",pt.size = 0.5,label = F,
+                 split.by = "orig.ident",raster=FALSE, num_columns = 4,split_seurat = TRUE)
+
+
+save(E18sc_brain1,file = "E18scbrain_filter_celltype.Rdata")
+
+#细胞比例
+load( "E18scbrain_filter_celltype.Rdata")
+sample_table <- as.data.frame(table(E18sc_brain1@meta.data$orig.ident,E18sc_brain1@meta.data$celltype))
+names(sample_table) <- c("Samples","celltype","CellNumber")
+
+plot_sample<-ggplot(sample_table,aes(x=Samples,weight=CellNumber,fill=celltype))+
+  geom_bar(position="fill")+
+  scale_fill_manual(values=colors) + 
+  theme(panel.grid = element_blank(),
+        panel.background = element_rect(fill = "transparent",colour = NA),
+        axis.line.x = element_line(colour = "black") ,
+        axis.line.y = element_line(colour = "black") ,
+        plot.title = element_text(lineheight=.8, face="bold", hjust=0.5, size =16)
+  )+labs(x="",y="Percentage")+RotatedAxis()
+plot_sample
+
+#marker gene
+marker<-c("Tubb3","Vim","Tek","Siglech","Gad2","Olig1","Neurod2","Myh11","Aldoc","Folr1","Lyz2","Mki67","Pdgfrb", "Tmem212","Rac2","Col6a1")
+VlnPlot(E18sc_brain1, features =marker,split.by ="orig.ident",group.by = "celltype" ,pt.size = 0,raster=FALSE,ncol = 1,split.plot = TRUE)
+FeaturePlot_scCustom(E18sc_brain1,features = c("Vim","Tubb3","Neurod2","Gad1","Aldoc","Mki67","C1qa", "Cldn5","Olig1", "Col1a1","Rgs5", "Folr1"),order = T,num_columns = 6, na_color = "lightgray",na_cutoff = 0.1)
+
+marker_gene<-c("Neurod2","Tbr1","Kif5c",
+               "Gad2","Gad1","Dlx6os1",
+               "Aldoc","Slc1a2","Cspg5", 
+               "Mki67","Birc5","Cdk1", 
+               "C1qa","Fcer1g","Tyrobp",
+               "Cldn5","Pecam1","Tek",
+               "Olig1","Pdgfra","Olig2",
+               "Col1a1","Dcn","Apod",
+               "Rgs5","Abcc9","Vtn",
+               "Folr1","Ptgds","Clu")
+DotPlot_scCustom(E18sc_brain1,features = marker_gene,flip_axes = T,x_lab_rotate = T)
