@@ -1,0 +1,48 @@
+library(Seurat)
+library(patchwork)
+library(reshape2)
+library(RColorBrewer)
+library(ggplot2)
+library(ggrepel)  
+library(magrittr)
+library(data.table)
+library(tidyverse)
+
+
+rm(list = ls())
+load("E18scbrain_filter_celltype.Rdata")
+sc.combined=E18sc_brain1
+sc.combined<-JoinLayers(sc.combined)
+
+table(sc.combined@meta.data$celltype)
+table(sc.combined@meta.data$orig.ident)
+
+type=unique(sc.combined@meta.data$celltype)
+
+dir.create("deg/")
+setwd("deg/")
+
+r.deg=data.frame()
+table(sc.combined@meta.data$orig.ident)
+
+for (i in 1:length(type)) {
+  Idents(sc.combined)="celltype"
+  deg=FindMarkers(sc.combined,ident.1 = "E18_HAM",ident.2 = "E18_NAM",
+                  group.by = "orig.ident",subset.ident =type[i],min.pct = 0.25, verbose = FALSE)
+  
+  write.csv(deg,file = paste0( type[i],'_deg.csv') )
+  deg$gene=rownames(deg)
+  deg$celltype=type[i]
+  deg$unm=i-1
+  r.deg=rbind(deg,r.deg)
+  }
+
+# 根据自己计算的marker基因数量确定log2FC的阈值，这里先定为1.5, pval_adj<0.05#################
+r.deg <- subset(r.deg, p_val_adj < 0.05 & abs(avg_log2FC) > 1)
+r.deg$threshold <- as.factor(ifelse(r.deg$avg_log2FC > 0 , 'Up', 'Down'))
+dim(r.deg)
+
+r.deg$adj_p_signi <- as.factor(ifelse(r.deg$p_val_adj < 0.05 , 'Highly', 'Lowly'))
+r.deg$thr_signi <- paste0(r.deg$threshold, "_", r.deg$adj_p_signi)
+r.deg$unm %<>% as.vector(.) %>% as.numeric(.)
+write.csv(r.deg,file="E18_HAM_vs_E18_NAM_total.csv")
